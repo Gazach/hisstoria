@@ -14,7 +14,10 @@
 
 static void print_usage(void) {
     printf("Usage:\n");
-    printf("  hiss cpy <source> <destination>\n");
+    printf("  hiss cpy    <source>    <destination>\n");
+    printf("  hiss cut    <source>    <destination>\n");
+    printf("  hiss cpydir <source>    <destination>\n");
+    printf("  hiss cutdir <source>    <destination>\n");
 }
 
 /* ------------------------------------------------------------ */
@@ -39,6 +42,34 @@ int main(int argc, char *argv[]) {
         }
         return cmd_cpy(argv[2], argv[3]);
     }
+
+    // cut command - moves a file to a destination directory
+    if (strcmp(argv[1], "cut") == 0) {
+        if (argc != 4) {
+            fprintf(stderr, "Usage: hiss cut <source> <destination>\n");
+            return 1;
+        }
+        return cmd_cut(argv[2], argv[3]);
+    }
+
+    // cpydir command - recursively copies a directory
+    if (strcmp(argv[1], "cpydir") == 0 || strcmp(argv[1], "cpy-dir") == 0) {
+        if (argc != 4) {
+            fprintf(stderr, "Usage: hiss cpydir <source> <destination>\n");
+            return 1;
+        }
+        return cmd_cpydir(argv[2], argv[3]);
+    }
+
+    // cutdir command - moves a directory to a destination
+    if (strcmp(argv[1], "cutdir") == 0 || strcmp(argv[1], "cut-dir") == 0) {
+        if (argc != 4) {
+            fprintf(stderr, "Usage: hiss cutdir <source> <destination>\n");
+            return 1;
+        }
+        return cmd_cutdir(argv[2], argv[3]);
+    }
+    
 
     fprintf(stderr, "hiss: unknown command '%s'\n", argv[1]);
     return 1;
