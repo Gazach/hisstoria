@@ -471,3 +471,76 @@ int cmd_listdir(const char *path) {
     return 0;
 #endif
 }
+
+/* ------------------------------------------------------------ */
+/*  Read command                                                 */
+/* ------------------------------------------------------------ */
+
+int cmd_read(const char *filepath) {
+    FILE *f = fopen(filepath, "r");
+    if (!f) {
+        fprintf(stderr, "hiss: cannot open '%s'\n", filepath);
+        return 1;
+    }
+
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), f))
+        fputs(buf, stdout);
+
+    fclose(f);
+    return 0;
+}
+
+/* ------------------------------------------------------------ */
+/*  Write command                                                */
+/* ------------------------------------------------------------ */
+
+int cmd_write(const char *filepath, int argc, char *argv[]) {
+    FILE *f = fopen(filepath, "w");
+    if (!f) {
+        fprintf(stderr, "hiss: cannot open '%s' for writing\n", filepath);
+        return 1;
+    }
+
+    /* Write each argument separated by a space.
+     * /nextline or /nextlines (with or without trailing !) inserts a newline.
+     * Matching is done without the trailing ! so PowerShell can't interfere. */
+    for (int i = 0; i < argc; i++) {
+        /* Strip a trailing '!' for comparison purposes */
+        size_t alen    = strlen(argv[i]);
+        int    has_bang = alen > 0 && argv[i][alen - 1] == '!';
+        char   token[64] = {0};
+        if (has_bang && alen - 1 < sizeof(token)) {
+            memcpy(token, argv[i], alen - 1);
+        } else {
+            strncpy(token, argv[i], sizeof(token) - 1);
+        }
+
+        int is_nl = (strcmp(token, "/nextline") == 0 || strcmp(token, "/nextlines") == 0);
+
+        if (is_nl) {
+            fputc('\n', f);
+        } else {
+            /* Don't add a leading space after a newline token */
+            int prev_nl = 0;
+            if (i > 0) {
+                size_t plen = strlen(argv[i - 1]);
+                int    pbang = plen > 0 && argv[i - 1][plen - 1] == '!';
+                char   prev[64] = {0};
+                if (pbang && plen - 1 < sizeof(prev))
+                    memcpy(prev, argv[i - 1], plen - 1);
+                else
+                    strncpy(prev, argv[i - 1], sizeof(prev) - 1);
+                prev_nl = (strcmp(prev, "/nextline") == 0 || strcmp(prev, "/nextlines") == 0);
+            }
+            if (i > 0 && !prev_nl)
+                fputc(' ', f);
+            fputs(argv[i], f);
+        }
+    }
+    fputc('\n', f);
+
+    fclose(f);
+    printf("written to '%s'\n", filepath);
+    return 0;
+}

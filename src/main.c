@@ -22,6 +22,10 @@ static void print_usage(void) {
     printf("  hiss ls     [path]\n");
     printf("  hiss listdir [path]\n");
     printf("  hiss lsdir   [path]\n");
+    printf("  hiss read    <file>\n");
+    printf("  hiss r       <file>\n");
+    printf("  hiss write   <file> <content...>\n");
+    printf("  hiss w       <file> <content...>\n");
 }
 
 /* ------------------------------------------------------------ */
@@ -84,6 +88,24 @@ int main(int argc, char *argv[]) {
     if (strcmp(argv[1], "listdir") == 0 || strcmp(argv[1], "lsdir") == 0) {
         const char *target = (argc >= 3) ? argv[2] : ".";
         return cmd_listdir(target);
+    }
+
+    // read command - prints file contents to stdout
+    if (strcmp(argv[1], "read") == 0 || strcmp(argv[1], "r") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Usage: hiss read <file>\n");
+            return 1;
+        }
+        return cmd_read(argv[2]);
+    }
+
+    // write command - overwrites a file with the given content
+    if (strcmp(argv[1], "write") == 0 || strcmp(argv[1], "w") == 0) {
+        if (argc < 4) {
+            fprintf(stderr, "Usage: hiss write <file> <content...>\n");
+            return 1;
+        }
+        return cmd_write(argv[2], argc - 3, &argv[3]);
     }
     
 

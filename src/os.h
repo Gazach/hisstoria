@@ -43,4 +43,13 @@ int cmd_list(const char *path);
  * Returns 0 on success, 1 on error. */
 int cmd_listdir(const char *path);
 
+/* Prints the contents of a file to stdout.
+ * Returns 0 on success, 1 on error. */
+int cmd_read(const char *filepath);
+
+/* Writes (overwrites) content to a file.
+ * argv_content is an array of strings that get joined with spaces.
+ * Returns 0 on success, 1 on error. */
+int cmd_write(const char *filepath, int argc, char *argv[]);
+
 #endif /* OS_H */
