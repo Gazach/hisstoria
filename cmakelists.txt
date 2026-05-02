@@ -1,0 +1,29 @@
+cmake_minimum_required(VERSION 3.22)
+project(Hisstoria LANGUAGES C CXX)
+
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Use Clang by default
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    message(FATAL_ERROR "This project is meant to be compiled with Clang.")
+endif()
+
+file(GLOB_RECURSE SOURCES
+    "src/*.cpp"
+    "src/*.c"
+)
+
+add_executable(hiss ${SOURCES})
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/example")
+    add_custom_command(TARGET hiss POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/example"
+            "$<TARGET_FILE_DIR:hiss>/example"
+    )
+endif()
