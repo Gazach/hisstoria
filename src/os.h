@@ -35,4 +35,12 @@ int cmd_cpydir(const char *src_dir, const char *dest_parent);
  * Returns 0 on success, 1 on error. */
 int cmd_cutdir(const char *src_dir, const char *dest_parent);
 
+/* Lists contents of path (or cwd if NULL) with name and size.
+ * Returns 0 on success, 1 on error. */
+int cmd_list(const char *path);
+
+/* Lists only directories inside path (or cwd if NULL).
+ * Returns 0 on success, 1 on error. */
+int cmd_listdir(const char *path);
+
 #endif /* OS_H */

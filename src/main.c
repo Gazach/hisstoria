@@ -18,6 +18,10 @@ static void print_usage(void) {
     printf("  hiss cut    <source>    <destination>\n");
     printf("  hiss cpydir <source>    <destination>\n");
     printf("  hiss cutdir <source>    <destination>\n");
+    printf("  hiss list   [path]\n");
+    printf("  hiss ls     [path]\n");
+    printf("  hiss listdir [path]\n");
+    printf("  hiss lsdir   [path]\n");
 }
 
 /* ------------------------------------------------------------ */
@@ -68,6 +72,18 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         return cmd_cutdir(argv[2], argv[3]);
+    }
+
+    // list command - lists files and folders in a directory
+    if (strcmp(argv[1], "list") == 0 || strcmp(argv[1], "ls") == 0) {
+        const char *target = (argc >= 3) ? argv[2] : ".";
+        return cmd_list(target);
+    }
+
+    // listdir command - lists only subdirectories
+    if (strcmp(argv[1], "listdir") == 0 || strcmp(argv[1], "lsdir") == 0) {
+        const char *target = (argc >= 3) ? argv[2] : ".";
+        return cmd_listdir(target);
     }
     
 

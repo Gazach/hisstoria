@@ -316,3 +316,158 @@ int cmd_cutdir(const char *src_dir, const char *dest_parent) {
 
     return 0;
 }
+
+/* ------------------------------------------------------------ */
+/*  Size formatting                                              */
+/* ------------------------------------------------------------ */
+
+static void format_size(unsigned long long bytes, char *out, size_t out_len) {
+    const char *units[] = { "B", "KB", "MB", "GB", "TB" };
+    int unit = 0;
+    double val = (double)bytes;
+
+    while (val >= 1024.0 && unit < 4) {
+        val  /= 1024.0;
+        unit++;
+    }
+
+    if (unit == 0)
+        snprintf(out, out_len, "%llu B", bytes);
+    else
+        snprintf(out, out_len, "%.1f %s", val, units[unit]);
+}
+
+/* ------------------------------------------------------------ */
+/*  List command                                                  */
+/* ------------------------------------------------------------ */
+
+int cmd_list(const char *path) {
+    /* Default to current directory */
+    if (!path || path[0] == '\0') path = ".";
+
+#ifdef _WIN32
+    size_t pat_len = strlen(path) + 3;
+    char  *pattern = malloc(pat_len);
+    if (!pattern) { fprintf(stderr, "hiss: out of memory\n"); return 1; }
+    snprintf(pattern, pat_len, "%s\\*", path);
+
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    free(pattern);
+
+    if (h == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "hiss: cannot open directory '%s'\n", path);
+        return 1;
+    }
+
+    do {
+        if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
+            continue;
+
+        int is_dir = (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+
+        if (is_dir) {
+            printf("%-40s  <DIR>\n", fd.cFileName);
+        } else {
+            unsigned long long size =
+                ((unsigned long long)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
+            char size_buf[32];
+            format_size(size, size_buf, sizeof(size_buf));
+            printf("%-40s  %s\n", fd.cFileName, size_buf);
+        }
+    } while (FindNextFileA(h, &fd));
+
+    FindClose(h);
+    return 0;
+#else
+    DIR *d = opendir(path);
+    if (!d) {
+        fprintf(stderr, "hiss: cannot open directory '%s'\n", path);
+        return 1;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(d)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        char *child = join_path(path, entry->d_name);
+        if (!child) { closedir(d); fprintf(stderr, "hiss: out of memory\n"); return 1; }
+
+        struct stat st;
+        if (stat(child, &st) != 0) {
+            printf("%-40s  ?\n", entry->d_name);
+            free(child);
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            printf("%-40s  <DIR>\n", entry->d_name);
+        } else {
+            char size_buf[32];
+            format_size((unsigned long long)st.st_size, size_buf, sizeof(size_buf));
+            printf("%-40s  %s\n", entry->d_name, size_buf);
+        }
+
+        free(child);
+    }
+
+    closedir(d);
+    return 0;
+#endif
+}
+
+int cmd_listdir(const char *path) {
+    /* Default to current directory */
+    if (!path || path[0] == '\0') path = ".";
+
+#ifdef _WIN32
+    size_t pat_len = strlen(path) + 3;
+    char  *pattern = malloc(pat_len);
+    if (!pattern) { fprintf(stderr, "hiss: out of memory\n"); return 1; }
+    snprintf(pattern, pat_len, "%s\\*", path);
+
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    free(pattern);
+
+    if (h == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "hiss: cannot open directory '%s'\n", path);
+        return 1;
+    }
+
+    do {
+        if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
+            continue;
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            printf("%-40s  <DIR>\n", fd.cFileName);
+    } while (FindNextFileA(h, &fd));
+
+    FindClose(h);
+    return 0;
+#else
+    DIR *d = opendir(path);
+    if (!d) {
+        fprintf(stderr, "hiss: cannot open directory '%s'\n", path);
+        return 1;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(d)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        char *child = join_path(path, entry->d_name);
+        if (!child) { closedir(d); fprintf(stderr, "hiss: out of memory\n"); return 1; }
+
+        struct stat st;
+        if (stat(child, &st) == 0 && S_ISDIR(st.st_mode))
+            printf("%-40s  <DIR>\n", entry->d_name);
+
+        free(child);
+    }
+
+    closedir(d);
+    return 0;
+#endif
+}
