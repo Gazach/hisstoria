@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "os.h"
-
+#include "initialization.h"
 /* ------------------------------------------------------------ */
 /*  Usage                                                        */
 /* ------------------------------------------------------------ */
@@ -27,6 +27,8 @@ static void print_usage(void) {
     printf("  hiss write   <file> <content...>\n");
     printf("  hiss w       <file> <content...>\n");
     printf("  hiss ck      <path>\n");
+    printf("  hiss init    \n");
+
 }
 
 /* ------------------------------------------------------------ */
@@ -116,6 +118,10 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         return cmd_ck(argv[2]);
+    }
+
+    if (strcmp(argv[1], "init") == 0) {
+        return hiss_init();
     }
 
     fprintf(stderr, "hiss: unknown command '%s'\n", argv[1]);

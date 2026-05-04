@@ -676,22 +676,25 @@ int cmd_write(const char *filepath, int argc, char *argv[]) {
 /* ------------------------------------------------------------ */
 
 /*
- * cmd_ck — checks whether a file exists at the given path.
+ * cmd_ck — checks whether a file or directory exists at the given path.
  *
- * Attempts to open 'path' in read mode.  If the open succeeds the file
- * exists: the handle is closed immediately, "true" is printed to stdout,
- * and 0 is returned.  If the open fails the file does not exist (or is not
- * accessible): "false" is printed to stdout and 1 is returned.
- * The exit code mirrors the boolean result so the command is also useful
- * as a shell condition (exit 0 = true, exit 1 = false).
+ * Uses GetFileAttributesA (Windows) or stat (POSIX) to test existence so
+ * that both regular files and directories are detected correctly.
+ * Prints "true" and returns 0 if the path exists; prints "false" and
+ * returns 1 if it does not.
  */
 int cmd_ck(const char *path) {
-    FILE *f = fopen(path, "r");
-    if (f) {
-        fclose(f);
-        printf("true\n");
+#ifdef _WIN32
+    DWORD attr = GetFileAttributesA(path);
+    if (attr != INVALID_FILE_ATTRIBUTES) {
         return 0;
     }
+#else
+    struct stat st;
+    if (stat(path, &st) == 0) {
+        return 0;
+    }
+#endif
     printf("false\n");
     return 1;
 }
