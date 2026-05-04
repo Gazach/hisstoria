@@ -121,6 +121,17 @@ static int make_dir(const char *path) {
 #endif
 }
 
+static int make_file(const char *path) {
+    FILE *f = fopen(path, "wb");
+    if (!f) {
+        fprintf(stderr, "hiss: cannot create file '%s'\n", path);
+        return 1;
+    }
+    fclose(f);
+    return 0;
+}
+
+
 /* ------------------------------------------------------------ */
 /*  Directory internals                                          */
 /* ------------------------------------------------------------ */
@@ -667,7 +678,6 @@ int cmd_write(const char *filepath, int argc, char *argv[]) {
     fputc('\n', f);
 
     fclose(f);
-    printf("written to '%s'\n", filepath);
     return 0;
 }
 
@@ -695,6 +705,31 @@ int cmd_ck(const char *path) {
         return 0;
     }
 #endif
-    printf("false\n");
+    return 1;
+}
+
+// cmd_mkdir — creates a directory at the specified path.
+
+// working by calling the internal make_dir function and handling the result to print appropriate messages and return status codes.
+int cmd_mkdir(const char *path) {
+    if (make_dir(path) == 0) {
+        return 0;
+    } else {
+        fprintf(stderr, "[hiss]: cannot create directory '%s'\n", path);
+        return -1;
+    }
+}
+
+/*
+ * cmd_mkfile — creates an empty file at the specified path.
+ *
+ * Delegates to the internal make_file helper which opens the path in
+ * binary write mode, creating an empty file (or truncating an existing one),
+ * then closes it immediately.  Returns 0 on success, 1 on failure.
+ */
+int cmd_mkfile(const char *path) {
+    if (make_file(path) == 0) {
+        return 0;
+    }
     return 1;
 }

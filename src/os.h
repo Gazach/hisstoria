@@ -57,4 +57,12 @@ int cmd_write(const char *filepath, int argc, char *argv[]);
  * Returns 0 if the file exists, 1 if it does not. */
 int cmd_ck(const char *path);
 
+/* Creates a directory at the given path.
+ * Returns 0 on success, 1 on error. */
+int cmd_mkdir(const char *path);
+
+/* Creates an empty file at the given path (truncates if it already exists).
+ * Returns 0 on success, 1 on error. */
+int cmd_mkfile(const char *path);
+
 #endif /* OS_H */

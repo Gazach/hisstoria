@@ -27,6 +27,8 @@ static void print_usage(void) {
     printf("  hiss write   <file> <content...>\n");
     printf("  hiss w       <file> <content...>\n");
     printf("  hiss ck      <path>\n");
+    printf("  hiss mkdir   <path>\n");
+    printf("  hiss mkfile  <path>\n");
     printf("  hiss init    \n");
 
 }
@@ -122,6 +124,24 @@ int main(int argc, char *argv[]) {
 
     if (strcmp(argv[1], "init") == 0) {
         return hiss_init();
+    }
+
+    // mkdir command - creates a new directory
+    if (strcmp(argv[1], "mkdir") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Usage: hiss mkdir <path>\n");
+            return 1;
+        }
+        return cmd_mkdir(argv[2]);
+    }
+
+    // mkfile command - creates a new empty file
+    if (strcmp(argv[1], "mkfile") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Usage: hiss mkfile <path>\n");
+            return 1;
+        }
+        return cmd_mkfile(argv[2]);
     }
 
     fprintf(stderr, "hiss: unknown command '%s'\n", argv[1]);
