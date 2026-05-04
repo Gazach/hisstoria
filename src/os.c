@@ -670,3 +670,28 @@ int cmd_write(const char *filepath, int argc, char *argv[]) {
     printf("written to '%s'\n", filepath);
     return 0;
 }
+
+/* ------------------------------------------------------------ */
+/*  Check command                                               */
+/* ------------------------------------------------------------ */
+
+/*
+ * cmd_ck — checks whether a file exists at the given path.
+ *
+ * Attempts to open 'path' in read mode.  If the open succeeds the file
+ * exists: the handle is closed immediately, "true" is printed to stdout,
+ * and 0 is returned.  If the open fails the file does not exist (or is not
+ * accessible): "false" is printed to stdout and 1 is returned.
+ * The exit code mirrors the boolean result so the command is also useful
+ * as a shell condition (exit 0 = true, exit 1 = false).
+ */
+int cmd_ck(const char *path) {
+    FILE *f = fopen(path, "r");
+    if (f) {
+        fclose(f);
+        printf("true\n");
+        return 0;
+    }
+    printf("false\n");
+    return 1;
+}

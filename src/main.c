@@ -26,6 +26,7 @@ static void print_usage(void) {
     printf("  hiss r       <file>\n");
     printf("  hiss write   <file> <content...>\n");
     printf("  hiss w       <file> <content...>\n");
+    printf("  hiss ck      <path>\n");
 }
 
 /* ------------------------------------------------------------ */
@@ -107,7 +108,15 @@ int main(int argc, char *argv[]) {
         }
         return cmd_write(argv[2], argc - 3, &argv[3]);
     }
-    
+
+    // ck command - checks if a file exists, prints true/false
+    if (strcmp(argv[1], "ck") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Usage: hiss ck <path>\n");
+            return 1;
+        }
+        return cmd_ck(argv[2]);
+    }
 
     fprintf(stderr, "hiss: unknown command '%s'\n", argv[1]);
     return 1;

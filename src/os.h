@@ -52,4 +52,9 @@ int cmd_read(const char *filepath);
  * Returns 0 on success, 1 on error. */
 int cmd_write(const char *filepath, int argc, char *argv[]);
 
+/* Checks whether a file exists at the given path.
+ * Prints "true" if it exists, "false" otherwise.
+ * Returns 0 if the file exists, 1 if it does not. */
+int cmd_ck(const char *path);
+
 #endif /* OS_H */
