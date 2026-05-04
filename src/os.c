@@ -21,6 +21,15 @@
 /*  Helpers                                                      */
 /* ------------------------------------------------------------ */
 
+/*
+ * filename_from_path — extracts the filename component from a full path.
+ *
+ * Scans the path string from right-to-left looking for the last '/' (POSIX)
+ * or '\\' (Windows) separator, then returns a pointer to the character that
+ * follows it.  If no separator is found the whole path is treated as a
+ * filename and returned unchanged.  The returned pointer points into the
+ * original string, so no allocation takes place.
+ */
 const char *filename_from_path(const char *path) {
     const char *slash     = strrchr(path, '/'); // read from right to find last slash
     const char *backslash = strrchr(path, '\\'); // also check for backslash for Windows paths
@@ -32,7 +41,14 @@ const char *filename_from_path(const char *path) {
 /*  Internal helpers                                             */
 /* ------------------------------------------------------------ */
 
-/* Copies src to dest — both are full file paths */
+/*
+ * copy_file — performs a binary copy of one file to another.
+ *
+ * Opens 'src' for reading and 'dest' for writing in binary mode, then pumps
+ * data through a 64 KB stack buffer until the source is exhausted.  Any
+ * read/write error causes an immediate return of 1; on success 0 is returned.
+ * Both file handles are closed before returning regardless of outcome.
+ */
 static int copy_file(const char *src, const char *dest) {
     FILE *in = fopen(src, "rb");
     if (!in) {
@@ -63,7 +79,14 @@ static int copy_file(const char *src, const char *dest) {
     return 0;
 }
 
-/* Joins base and name into a malloc'd path string: "base/name" */
+/*
+ * join_path — concatenates two path components into a newly allocated string.
+ *
+ * If 'base' already ends with a separator ('/' or '\\') the two components
+ * are simply concatenated; otherwise the platform-specific PATH_SEP character
+ * is inserted between them.  The caller is responsible for free()-ing the
+ * returned buffer.  Returns NULL if malloc fails.
+ */
 static char *join_path(const char *base, const char *name) {
     size_t blen    = strlen(base);
     int    has_sep = blen > 0 && (base[blen - 1] == '/' || base[blen - 1] == '\\');
@@ -80,7 +103,14 @@ static char *join_path(const char *base, const char *name) {
     return out;
 }
 
-/* Creates a single directory; succeeds silently if it already exists */
+/*
+ * make_dir — creates a single directory at 'path'.
+ *
+ * On Windows it calls CreateDirectoryA; on POSIX it calls mkdir with
+ * permissions 0755.  If the directory already exists the function returns 0
+ * (success) rather than an error so callers do not need to pre-check
+ * existence.  Returns 0 on success, -1 on any other failure.
+ */
 static int make_dir(const char *path) {
 #ifdef _WIN32
     if (CreateDirectoryA(path, NULL)) return 0;
@@ -95,7 +125,17 @@ static int make_dir(const char *path) {
 /*  Directory internals                                          */
 /* ------------------------------------------------------------ */
 
-/* Recursively copies src directory tree into dest (dest is the full target path) */
+/*
+ * copy_dir_recursive — deep-copies an entire directory tree.
+ *
+ * First creates 'dest' via make_dir, then iterates every entry inside 'src':
+ *   - Sub-directories are handled with a recursive call.
+ *   - Regular files are copied with copy_file.
+ * On Windows the Win32 FindFirstFile/FindNextFile API is used; on POSIX
+ * opendir/readdir together with stat() are used to distinguish files from
+ * directories.  Dot-entries ("." and "..") are skipped in both cases.
+ * Returns 0 on full success, 1 on the first error encountered.
+ */
 static int copy_dir_recursive(const char *src, const char *dest) {
     if (make_dir(dest) != 0) {
         fprintf(stderr, "hiss: cannot create directory '%s'\n", dest);
@@ -177,7 +217,15 @@ static int copy_dir_recursive(const char *src, const char *dest) {
 #endif
 }
 
-/* Recursively deletes a directory and all its contents */
+/*
+ * remove_dir_recursive — deletes a directory and everything inside it.
+ *
+ * Iterates the directory contents, recursing into sub-directories and
+ * deleting regular files directly (DeleteFileA on Windows, unlink on POSIX).
+ * After all children have been removed the directory itself is deleted
+ * (RemoveDirectoryA / rmdir).  Returns 0 on success, 1 if the final
+ * directory removal fails.
+ */
 static int remove_dir_recursive(const char *path) {
 #ifdef _WIN32
     size_t pat_len = strlen(path) + 3;
@@ -246,6 +294,15 @@ static int remove_dir_recursive(const char *path) {
 /*  Commands                                                     */
 /* ------------------------------------------------------------ */
 
+/*
+ * cmd_cpy — copies a single file into a destination directory.
+ *
+ * Extracts the filename from 'src' with filename_from_path, builds the full
+ * destination path by joining 'dest_dir' and the filename, then delegates to
+ * copy_file.  On success prints a "copied" message to stdout.  The
+ * destination directory must already exist; this function does not create it.
+ * Returns 0 on success, 1 on failure.
+ */
 int cmd_cpy(const char *src, const char *dest_dir) {
     const char *fname = filename_from_path(src);
 
@@ -272,6 +329,13 @@ int cmd_cpy(const char *src, const char *dest_dir) {
     return result;
 }
 
+/*
+ * cmd_cut — moves a single file into a destination directory.
+ *
+ * Implements move as copy-then-delete: first calls cmd_cpy to copy the file;
+ * if that succeeds the source file is removed with remove().  If the copy
+ * fails the source is left untouched.  Returns 0 on success, 1 on failure.
+ */
 int cmd_cut(const char *src, const char *dest_dir) {
     /* Copy first — if that fails, don't delete the source */
     int result = cmd_cpy(src, dest_dir);
@@ -287,6 +351,14 @@ int cmd_cut(const char *src, const char *dest_dir) {
     return 0;
 }
 
+/*
+ * cmd_cpydir — copies an entire directory tree under a destination parent.
+ *
+ * Extracts the directory name from 'src_dir', joins it with 'dest_parent' to
+ * form the full target path, then calls copy_dir_recursive to perform the
+ * deep copy.  On success prints a "copied dir" message to stdout.
+ * Returns 0 on success, 1 on failure.
+ */
 int cmd_cpydir(const char *src_dir, const char *dest_parent) {
     const char *dname    = filename_from_path(src_dir);
     char       *dest_dir = join_path(dest_parent, dname);
@@ -302,6 +374,14 @@ int cmd_cpydir(const char *src_dir, const char *dest_parent) {
     return result;
 }
 
+/*
+ * cmd_cutdir — moves an entire directory tree under a destination parent.
+ *
+ * Implements move as copy-then-delete: first calls cmd_cpydir to deep-copy
+ * the directory; if that succeeds remove_dir_recursive deletes the original
+ * source tree.  If the copy fails the source is left untouched.
+ * Returns 0 on success, 1 on failure.
+ */
 int cmd_cutdir(const char *src_dir, const char *dest_parent) {
     /* Copy first — if that fails, don't delete the source */
     int result = cmd_cpydir(src_dir, dest_parent);
@@ -321,6 +401,15 @@ int cmd_cutdir(const char *src_dir, const char *dest_parent) {
 /*  Size formatting                                              */
 /* ------------------------------------------------------------ */
 
+/*
+ * format_size — converts a byte count into a human-readable string.
+ *
+ * Repeatedly divides 'bytes' by 1024 while the value is >= 1024 and a
+ * higher unit (KB, MB, GB, TB) is available.  The result is written into
+ * the caller-supplied buffer 'out' of size 'out_len'.  Whole-byte counts
+ * are formatted as integers (e.g. "512 B"); larger values are formatted
+ * with one decimal place (e.g. "1.5 MB").
+ */
 static void format_size(unsigned long long bytes, char *out, size_t out_len) {
     const char *units[] = { "B", "KB", "MB", "GB", "TB" };
     int unit = 0;
@@ -341,6 +430,15 @@ static void format_size(unsigned long long bytes, char *out, size_t out_len) {
 /*  List command                                                  */
 /* ------------------------------------------------------------ */
 
+/*
+ * cmd_list — lists all entries (files and directories) in a directory.
+ *
+ * Iterates every entry in 'path' (defaults to "." when NULL or empty) and
+ * prints each name left-aligned in a 40-character field.  Directories are
+ * annotated with "<DIR>"; regular files show a human-readable size produced
+ * by format_size.  Uses Win32 FindFirstFile/FindNextFile on Windows and
+ * opendir/readdir + stat on POSIX.  Returns 0 on success, 1 on failure.
+ */
 int cmd_list(const char *path) {
     /* Default to current directory */
     if (!path || path[0] == '\0') path = ".";
@@ -417,6 +515,14 @@ int cmd_list(const char *path) {
 #endif
 }
 
+/*
+ * cmd_listdir — lists only the sub-directories inside a directory.
+ *
+ * Behaves like cmd_list but filters out regular files, printing only entries
+ * that are directories (annotated with "<DIR>").  Useful for quickly seeing
+ * the folder structure without the clutter of individual files.
+ * Returns 0 on success, 1 on failure.
+ */
 int cmd_listdir(const char *path) {
     /* Default to current directory */
     if (!path || path[0] == '\0') path = ".";
@@ -476,6 +582,14 @@ int cmd_listdir(const char *path) {
 /*  Read command                                                 */
 /* ------------------------------------------------------------ */
 
+/*
+ * cmd_read — prints the contents of a text file to stdout.
+ *
+ * Opens 'filepath' in text mode and reads it line-by-line through a 4 KB
+ * buffer, writing each chunk directly to stdout with fputs.  This effectively
+ * replicates the behaviour of the Unix 'cat' command for a single file.
+ * Returns 0 on success, 1 if the file cannot be opened.
+ */
 int cmd_read(const char *filepath) {
     FILE *f = fopen(filepath, "r");
     if (!f) {
@@ -495,6 +609,18 @@ int cmd_read(const char *filepath) {
 /*  Write command                                                */
 /* ------------------------------------------------------------ */
 
+/*
+ * cmd_write — writes a sequence of arguments to a file as a single line.
+ *
+ * Opens 'filepath' for writing (truncating any existing content), then
+ * iterates argv[0..argc-1] and writes each token separated by a single space.
+ * The special tokens "/nextline" and "/nextlines" (optionally suffixed with
+ * '!' to avoid PowerShell interference) insert a newline character instead
+ * of text, allowing multi-line output from a single command invocation.
+ * A trailing newline is always appended after the last token.  On success
+ * prints a "written to" confirmation message.  Returns 0 on success, 1 if
+ * the file cannot be opened.
+ */
 int cmd_write(const char *filepath, int argc, char *argv[]) {
     FILE *f = fopen(filepath, "w");
     if (!f) {
